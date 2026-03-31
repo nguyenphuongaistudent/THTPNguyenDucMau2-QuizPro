@@ -14,16 +14,23 @@ export default function ExamManagementPage() {
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
 
   const fetchExams = async () => {
     setLoading(true);
-    const query = supabase
+    let query = supabase
       .from('exams')
       .select('*, profiles(full_name)')
       .order('created_at', { ascending: false });
     
     if (user?.role === 'teacher') {
-      query.eq('created_by', user.id);
+      query = query.eq('created_by', user.id);
+    }
+
+    if (statusFilter === 'published') {
+      query = query.eq('is_published', true);
+    } else if (statusFilter === 'draft') {
+      query = query.eq('is_published', false);
     }
 
     const { data, error } = await query;
@@ -34,7 +41,7 @@ export default function ExamManagementPage() {
 
   useEffect(() => {
     fetchExams();
-  }, [user]);
+  }, [user, statusFilter]);
 
   const togglePublish = async (id: string, current: boolean) => {
     const { error } = await supabase
@@ -74,14 +81,28 @@ export default function ExamManagementPage() {
         </Link>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input 
-          className="pl-10" 
-          placeholder="Tìm kiếm đề thi..." 
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input 
+            className="pl-10" 
+            placeholder="Tìm kiếm đề thi..." 
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">Trạng thái:</span>
+          <select 
+            className="rounded-md border border-slate-200 p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as any)}
+          >
+            <option value="all">Tất cả</option>
+            <option value="published">Công khai</option>
+            <option value="draft">Nháp</option>
+          </select>
+        </div>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -91,8 +112,8 @@ export default function ExamManagementPage() {
           <div className="col-span-full py-20 text-center text-slate-500">Chưa có đề thi nào.</div>
         ) : (
           filteredExams.map((exam) => (
-            <Card key={exam.id} className="group relative flex flex-col overflow-hidden">
-              <CardHeader>
+            <Card key={exam.id} className="group relative flex flex-col overflow-hidden border-slate-200 transition-all hover:border-blue-200 hover:shadow-md">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <span className={cn(
                     "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
@@ -100,17 +121,32 @@ export default function ExamManagementPage() {
                   )}>
                     {exam.is_published ? 'Công khai' : 'Nháp'}
                   </span>
-                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button variant="ghost" size="icon" onClick={() => togglePublish(exam.id, exam.is_published)}>
-                      {exam.is_published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={cn(
+                        "h-8 w-8",
+                        exam.is_published ? "text-green-600 hover:bg-green-50" : "text-slate-400 hover:bg-slate-50"
+                      )}
+                      onClick={() => togglePublish(exam.id, exam.is_published)}
+                      title={exam.is_published ? 'Gỡ đề thi' : 'Công khai đề thi'}
+                    >
+                      {exam.is_published ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(exam.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-red-500 hover:bg-red-50" 
+                      onClick={() => handleDelete(exam.id)}
+                      title="Xóa đề thi"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
                 <CardTitle className="line-clamp-1 mt-2 text-lg">{exam.title}</CardTitle>
-                <CardDescription className="line-clamp-2">{exam.description || 'Không có mô tả.'}</CardDescription>
+                <CardDescription className="line-clamp-2 min-h-[40px]">{exam.description || 'Không có mô tả.'}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow space-y-3">
                 <div className="flex items-center gap-2 text-sm text-slate-500">

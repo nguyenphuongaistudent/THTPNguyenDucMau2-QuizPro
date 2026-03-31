@@ -32,15 +32,25 @@ export default function DashboardPage() {
 
         setStats(prev => ({ ...prev, attempts: attemptCount || 0, exams: examCount || 0 }));
       } else {
-        const { count: examCount } = await supabase
+        let examQuery = supabase
           .from('exams')
-          .select('*', { count: 'exact', head: true })
-          .eq('created_by', user.id);
+          .select('*', { count: 'exact', head: true });
         
-        const { count: questionCount } = await supabase
+        if (user.role === 'teacher') {
+          examQuery = examQuery.eq('created_by', user.id);
+        }
+        
+        const { count: examCount } = await examQuery;
+        
+        let questionQuery = supabase
           .from('questions')
-          .select('*', { count: 'exact', head: true })
-          .eq('created_by', user.id);
+          .select('*', { count: 'exact', head: true });
+
+        if (user.role === 'teacher') {
+          questionQuery = questionQuery.eq('created_by', user.id);
+        }
+
+        const { count: questionCount } = await questionQuery;
 
         setStats(prev => ({ ...prev, exams: examCount || 0, questions: questionCount || 0 }));
       }

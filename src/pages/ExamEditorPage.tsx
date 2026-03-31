@@ -18,6 +18,7 @@ export default function ExamEditorPage() {
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(60);
   const [passScore, setPassScore] = useState(50);
+  const [isPublished, setIsPublished] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
@@ -38,6 +39,7 @@ export default function ExamEditorPage() {
           setDescription(exam.description);
           setDuration(exam.duration);
           setPassScore(exam.pass_score);
+          setIsPublished(exam.is_published);
         }
 
         // Fetch exam questions
@@ -69,7 +71,7 @@ export default function ExamEditorPage() {
         // Update exam
         const { error } = await supabase
           .from('exams')
-          .update({ title, description, duration, pass_score: passScore })
+          .update({ title, description, duration, pass_score: passScore, is_published: isPublished })
           .eq('id', id);
         if (error) throw error;
 
@@ -79,7 +81,7 @@ export default function ExamEditorPage() {
         // Create exam
         const { data, error } = await supabase
           .from('exams')
-          .insert({ title, description, duration, pass_score: passScore, created_by: user?.id })
+          .insert({ title, description, duration, pass_score: passScore, is_published: isPublished, created_by: user?.id })
           .select()
           .single();
         if (error) throw error;
@@ -147,6 +149,29 @@ export default function ExamEditorPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Thời gian (phút)" type="number" value={duration} onChange={e => setDuration(parseInt(e.target.value))} />
                 <Input label="Điểm đạt (%)" type="number" value={passScore} onChange={e => setPassScore(parseInt(e.target.value))} />
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50/50 p-3">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Trạng thái công khai</span>
+                  <span className="text-xs text-slate-500">Cho phép học sinh thấy đề thi này</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                    isPublished ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                  )}>
+                    {isPublished ? 'Công khai' : 'Nháp'}
+                  </span>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8"
+                    onClick={() => setIsPublished(!isPublished)}
+                  >
+                    {isPublished ? 'Gỡ' : 'Bật'}
+                  </Button>
+                </div>
               </div>
               <Button className="w-full" onClick={handleSave} loading={loading}>
                 Lưu đề thi

@@ -99,6 +99,13 @@ export default function QuizPage() {
           .single();
         
         if (examError) throw examError;
+        
+        if (!examData.is_published && user.role === 'student') {
+          toast.error('Đề thi này hiện đang đóng hoặc chưa được công khai.');
+          navigate('/exams');
+          return;
+        }
+
         setExam(examData);
         setTimeLeft(examData.duration * 60);
 
