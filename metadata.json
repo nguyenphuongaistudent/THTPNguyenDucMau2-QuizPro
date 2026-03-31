@@ -1,0 +1,8 @@
+{
+  "name": "EduQuizPro",
+  "description": "Hệ thống thi trắc nghiệm online chuyên nghiệp với Supabase backend.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

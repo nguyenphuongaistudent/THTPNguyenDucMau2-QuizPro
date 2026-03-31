@@ -1,0 +1,36 @@
+{
+  "questions": [
+    {
+      "content": "Thủ đô của Việt Nam là gì?",
+      "type": "single",
+      "difficulty": "easy",
+      "answers": [
+        { "content": "Hà Nội", "is_correct": true },
+        { "content": "TP. Hồ Chí Minh", "is_correct": false },
+        { "content": "Đà Nẵng", "is_correct": false },
+        { "content": "Huế", "is_correct": false }
+      ],
+      "explanation": "Hà Nội là thủ đô của nước Cộng hòa Xã hội Chủ nghĩa Việt Nam."
+    },
+    {
+      "content": "Những số nào sau đây là số nguyên tố?",
+      "type": "multiple",
+      "difficulty": "medium",
+      "answers": [
+        { "content": "2", "is_correct": true },
+        { "content": "3", "is_correct": true },
+        { "content": "4", "is_correct": false },
+        { "content": "5", "is_correct": true }
+      ]
+    },
+    {
+      "content": "Trái đất quay quanh Mặt trời đúng hay sai?",
+      "type": "boolean",
+      "difficulty": "easy",
+      "answers": [
+        { "content": "Đúng", "is_correct": true },
+        { "content": "Sai", "is_correct": false }
+      ]
+    }
+  ]
+}
