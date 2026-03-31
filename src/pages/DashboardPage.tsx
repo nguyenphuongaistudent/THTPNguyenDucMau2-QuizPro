@@ -3,11 +3,15 @@ import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Plus, BookOpen, Users, ClipboardList, LogOut } from 'lucide-react';
+import { Plus, BookOpen, Users, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Skeleton } from '../components/ui/Skeleton';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     exams: 0,
     questions: 0,
@@ -17,58 +21,98 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!user) return;
+      if (!user?.id) return;
+      setLoading(true);
 
-      if (user.role === 'student') {
-        const { count: attemptCount } = await supabase
-          .from('attempts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        
-        const { count: examCount } = await supabase
-          .from('exams')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_published', true);
+      try {
+        if (user.role === 'student') {
+          const { count: attemptCount, error: attemptError } = await supabase
+            .from('attempts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+          
+          if (attemptError) throw attemptError;
 
-        setStats(prev => ({ ...prev, attempts: attemptCount || 0, exams: examCount || 0 }));
-      } else {
-        let examQuery = supabase
-          .from('exams')
-          .select('*', { count: 'exact', head: true });
-        
-        if (user.role === 'teacher') {
-          examQuery = examQuery.eq('created_by', user.id);
+          const { count: examCount, error: examError } = await supabase
+            .from('exams')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_published', true);
+
+          if (examError) throw examError;
+
+          setStats(prev => ({ ...prev, attempts: attemptCount || 0, exams: examCount || 0 }));
+        } else {
+          let examQuery = supabase
+            .from('exams')
+            .select('*', { count: 'exact', head: true });
+          
+          if (user.role === 'teacher') {
+            examQuery = examQuery.eq('created_by', user.id);
+          }
+          
+          const { count: examCount, error: examError } = await examQuery;
+          if (examError) throw examError;
+          
+          let questionQuery = supabase
+            .from('questions')
+            .select('*', { count: 'exact', head: true });
+
+          if (user.role === 'teacher') {
+            questionQuery = questionQuery.eq('created_by', user.id);
+          }
+
+          const { count: questionCount, error: questionError } = await questionQuery;
+          if (questionError) throw questionError;
+          
+          const { count: studentCount, error: studentError } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('role', 'student');
+
+          if (studentError) throw studentError;
+
+          setStats(prev => ({ ...prev, exams: examCount || 0, questions: questionCount || 0, students: studentCount || 0 }));
         }
-        
-        const { count: examCount } = await examQuery;
-        
-        let questionQuery = supabase
-          .from('questions')
-          .select('*', { count: 'exact', head: true });
-
-        if (user.role === 'teacher') {
-          questionQuery = questionQuery.eq('created_by', user.id);
-        }
-
-        const { count: questionCount } = await questionQuery;
-        
-        const { count: studentCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'student');
-
-        setStats(prev => ({ ...prev, exams: examCount || 0, questions: questionCount || 0, students: studentCount || 0 }));
+      } catch (error: any) {
+        console.error('Error fetching stats:', error);
+        toast.error('Không thể tải thông tin thống kê');
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchStats();
   }, [user]);
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="space-y-8">
+    <motion.div 
+      className="space-y-8"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Chào mừng trở lại, {user?.full_name}!</h2>
+          <h2 className="text-2xl font-bold text-slate-900">
+            Chào mừng trở lại, {user?.full_name || 'Người dùng'}!
+          </h2>
           <p className="text-slate-500">Đây là những gì đang diễn ra trong hệ thống của bạn.</p>
         </div>
         {user?.role !== 'student' && (
@@ -81,57 +125,83 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Đề thi</CardTitle>
-              <ClipboardList className="h-4 w-4 text-slate-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.exams}</div>
-              <p className="text-xs text-slate-500">Đề thi hiện có</p>
-            </CardContent>
-          </Card>
-          
-          {user?.role !== 'student' ? (
-            <>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Câu hỏi</CardTitle>
-                  <BookOpen className="h-4 w-4 text-slate-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.questions}</div>
-                  <p className="text-xs text-slate-500">Trong ngân hàng</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Học sinh</CardTitle>
-                  <Users className="h-4 w-4 text-slate-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.students}</div>
-                  <p className="text-xs text-slate-500">Đã tham gia</p>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <Card>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Lượt thi</CardTitle>
-                <Plus className="h-4 w-4 text-slate-400" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4 rounded-full" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.attempts}</div>
-                <p className="text-xs text-slate-500">Đã hoàn thành</p>
+                <Skeleton className="h-8 w-12 mb-2" />
+                <Skeleton className="h-3 w-20" />
               </CardContent>
             </Card>
-          )}
-        </div>
+          ))
+        ) : (
+          <>
+            <motion.div variants={itemVariants}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Đề thi</CardTitle>
+                  <ClipboardList className="h-4 w-4 text-slate-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.exams}</div>
+                  <p className="text-xs text-slate-500">Đề thi hiện có</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            {user?.role !== 'student' ? (
+              <>
+                <motion.div variants={itemVariants}>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Câu hỏi</CardTitle>
+                      <BookOpen className="h-4 w-4 text-slate-400" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats.questions}</div>
+                      <p className="text-xs text-slate-500">Trong ngân hàng</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+                <motion.div variants={itemVariants}>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Học sinh</CardTitle>
+                      <Users className="h-4 w-4 text-slate-400" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats.students}</div>
+                      <p className="text-xs text-slate-500">Đã tham gia</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </>
+            ) : (
+              <motion.div variants={itemVariants}>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Lượt thi</CardTitle>
+                    <Plus className="h-4 w-4 text-slate-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.attempts}</div>
+                    <p className="text-xs text-slate-500">Đã hoàn thành</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </>
+        )}
+      </div>
 
-        {/* Quick Actions / Recent Activity */}
-        <div className="mt-12 grid gap-8 lg:grid-cols-2">
+      {/* Quick Actions / Recent Activity */}
+      <div className="mt-12 grid gap-8 lg:grid-cols-2">
+        <motion.div variants={itemVariants}>
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Hành động nhanh</CardTitle>
@@ -176,7 +246,9 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
+        </motion.div>
 
+        <motion.div variants={itemVariants}>
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Thông báo mới nhất</CardTitle>
@@ -187,7 +259,8 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
       </div>
-    );
+    </motion.div>
+  );
 }
