@@ -4,9 +4,10 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../components/ui/Card';
-import { Plus, Search, Filter, Trash2, Edit2, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit2, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { LatexRenderer } from '../components/LatexRenderer';
 
 export default function QuestionBankPage() {
   const { user } = useAuthStore();
@@ -168,15 +169,17 @@ export default function QuestionBankPage() {
                         {q.type}
                       </span>
                     </div>
-                    <p className="text-lg font-medium text-slate-900">{q.content}</p>
+                    <div className="text-lg font-medium text-slate-900">
+                      <LatexRenderer content={q.content} />
+                    </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {q.answers.map((a: any, idx: number) => (
                         <div key={idx} className={cn(
                           "flex items-center gap-2 rounded-md border p-2 text-sm",
                           a.is_correct ? "border-green-200 bg-green-50 text-green-700" : "border-slate-100 bg-slate-50 text-slate-500"
                         )}>
-                          {a.is_correct ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                          {a.content}
+                          {a.is_correct ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
+                          <LatexRenderer content={a.content} />
                         </div>
                       ))}
                     </div>
@@ -233,7 +236,12 @@ export default function QuestionBankPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Nội dung câu hỏi</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Nội dung câu hỏi</label>
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                      <Eye className="h-3 w-3" /> {"Xem trước LaTeX: $x^2$, $\\frac{a}{b}$"}
+                    </div>
+                  </div>
                   <textarea
                     className="w-full rounded-md border border-slate-200 p-3 text-sm focus:ring-2 focus:ring-blue-500"
                     rows={3}
@@ -242,6 +250,12 @@ export default function QuestionBankPage() {
                     placeholder="Nhập nội dung câu hỏi (hỗ trợ LaTeX)..."
                     required
                   />
+                  {content && (
+                    <div className="mt-2 rounded-md bg-slate-50 p-3 text-sm border border-dashed border-slate-200">
+                      <p className="mb-1 text-[10px] font-bold uppercase text-slate-400">Xem trước:</p>
+                      <LatexRenderer content={content} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">

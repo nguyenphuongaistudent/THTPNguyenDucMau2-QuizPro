@@ -27,7 +27,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'teacher', 'student'] },
-    { name: 'Đề thi', href: '/exams', icon: ClipboardList, roles: ['admin', 'teacher', 'student'] },
+    { name: 'Kỳ thi', href: '/exams', icon: ClipboardList, roles: ['admin', 'teacher', 'student'] },
+    { name: 'Quản lý đề thi', href: '/exams/manage', icon: Settings, roles: ['admin', 'teacher'] },
     { name: 'Ngân hàng câu hỏi', href: '/questions', icon: BookOpen, roles: ['admin', 'teacher'] },
     { name: 'Thống kê', href: '/reports', icon: BarChart3, roles: ['admin', 'teacher'] },
     { name: 'Kết quả của tôi', href: '/results', icon: BarChart3, roles: ['student'] },

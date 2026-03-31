@@ -158,10 +158,15 @@ export default function ExamManagementPage() {
                   Điểm đạt: {exam.pass_score}%
                 </div>
               </CardContent>
-              <div className="border-t border-slate-100 p-4">
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-4">
+                <Link to={`/exams/${exam.id}`}>
+                  <Button variant="ghost" className="w-full gap-2">
+                    <Eye className="h-4 w-4" /> Xem trước
+                  </Button>
+                </Link>
                 <Link to={`/exams/edit/${exam.id}`}>
                   <Button variant="outline" className="w-full gap-2">
-                    <Edit2 className="h-4 w-4" /> Chỉnh sửa đề thi
+                    <Edit2 className="h-4 w-4" /> Chỉnh sửa
                   </Button>
                 </Link>
               </div>

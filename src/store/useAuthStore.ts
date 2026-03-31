@@ -40,7 +40,18 @@ export const useAuthStore = create<AuthState>((set) => ({
         .eq('id', session.user.id)
         .single();
       
-      set({ session, user: profile, loading: false });
+      let finalProfile = profile;
+      if (session.user.email === 'nguyenphuongaistudent@gmail.com' && profile && profile.role !== 'admin') {
+        const { data: updatedProfile } = await supabase
+          .from('profiles')
+          .update({ role: 'admin' })
+          .eq('id', session.user.id)
+          .select()
+          .single();
+        finalProfile = updatedProfile;
+      }
+      
+      set({ session, user: finalProfile, loading: false });
     } else {
       set({ session: null, user: null, loading: false });
     }
@@ -52,7 +63,18 @@ export const useAuthStore = create<AuthState>((set) => ({
           .select('*')
           .eq('id', session.user.id)
           .single();
-        set({ session, user: profile });
+        
+        let finalProfile = profile;
+        if (session.user.email === 'nguyenphuongaistudent@gmail.com' && profile && profile.role !== 'admin') {
+          const { data: updatedProfile } = await supabase
+            .from('profiles')
+            .update({ role: 'admin' })
+            .eq('id', session.user.id)
+            .select()
+            .single();
+          finalProfile = updatedProfile;
+        }
+        set({ session, user: finalProfile });
       } else {
         set({ session: null, user: null });
       }

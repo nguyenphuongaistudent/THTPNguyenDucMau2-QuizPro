@@ -51,8 +51,13 @@ export default function DashboardPage() {
         }
 
         const { count: questionCount } = await questionQuery;
+        
+        const { count: studentCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'student');
 
-        setStats(prev => ({ ...prev, exams: examCount || 0, questions: questionCount || 0 }));
+        setStats(prev => ({ ...prev, exams: examCount || 0, questions: questionCount || 0, students: studentCount || 0 }));
       }
     };
 
@@ -151,11 +156,11 @@ export default function DashboardPage() {
                 <>
                   <Link to="/questions">
                     <Button variant="outline" className="w-full justify-start gap-3">
-                      <Plus className="h-5 w-5 text-blue-500" />
+                      <BookOpen className="h-5 w-5 text-blue-500" />
                       Quản lý ngân hàng câu hỏi
                     </Button>
                   </Link>
-                  <Link to="/exams">
+                  <Link to="/exams/manage">
                     <Button variant="outline" className="w-full justify-start gap-3">
                       <ClipboardList className="h-5 w-5 text-purple-500" />
                       Quản lý đề thi

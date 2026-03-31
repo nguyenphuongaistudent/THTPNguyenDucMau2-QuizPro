@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Timer, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
+import { LatexRenderer } from '../components/LatexRenderer';
 
 interface Question {
   id: string;
@@ -252,7 +253,7 @@ export default function QuizPage() {
             <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="text-xl leading-relaxed">
-                  {currentQ.content}
+                  <LatexRenderer content={currentQ.content} />
                 </CardTitle>
                 <div className="flex gap-2">
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 uppercase">
@@ -280,7 +281,7 @@ export default function QuizPage() {
                     )}>
                       {answers[currentQ.id]?.includes(answer.id) && <CheckCircle2 className="h-4 w-4" />}
                     </div>
-                    <span className="text-slate-700">{answer.content}</span>
+                    <LatexRenderer content={answer.content} className="text-slate-700" />
                   </button>
                 ))}
               </CardContent>
