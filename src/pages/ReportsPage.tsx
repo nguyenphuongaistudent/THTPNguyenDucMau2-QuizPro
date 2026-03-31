@@ -14,6 +14,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!user?.id) return;
       setLoading(true);
       
       // Fetch stats based on role

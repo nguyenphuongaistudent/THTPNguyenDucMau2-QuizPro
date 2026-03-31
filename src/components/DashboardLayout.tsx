@@ -70,8 +70,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             ))}
           </nav>
-          <div className="border-t border-slate-100 p-4">
-            <div className="flex items-center gap-3 px-2 py-3">
+          <div className="border-t border-slate-100 p-4 space-y-4">
+            <div className="flex items-center gap-3 px-2">
               <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
                 {user?.full_name?.charAt(0) || 'U'}
               </div>
@@ -79,10 +79,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <p className="truncate text-sm font-medium text-slate-900">{user?.full_name}</p>
                 <p className="truncate text-xs text-slate-500 capitalize">{user?.role}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Đăng xuất">
-                <LogOut className="h-4 w-4 text-slate-400" />
-              </Button>
             </div>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors" 
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Đăng xuất</span>
+            </Button>
           </div>
         </div>
       </aside>

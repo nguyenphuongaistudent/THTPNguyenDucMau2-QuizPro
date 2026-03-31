@@ -229,9 +229,14 @@ export default function QuizPage() {
             <Timer className="h-5 w-5" />
             {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
           </div>
-          <Button variant="primary" onClick={() => submitQuiz()} loading={isSubmitting}>
-            Nộp bài
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => navigate('/exams')}>
+              Thoát
+            </Button>
+            <Button variant="primary" onClick={() => submitQuiz()} loading={isSubmitting}>
+              Nộp bài
+            </Button>
+          </div>
         </div>
         <div className="h-1 w-full bg-slate-100">
           <div 

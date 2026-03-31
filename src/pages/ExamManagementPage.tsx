@@ -17,13 +17,14 @@ export default function ExamManagementPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
 
   const fetchExams = async () => {
+    if (!user?.id) return;
     setLoading(true);
     let query = supabase
       .from('exams')
       .select('*, profiles(full_name)')
       .order('created_at', { ascending: false });
     
-    if (user?.role === 'teacher') {
+    if (user.role === 'teacher') {
       query = query.eq('created_by', user.id);
     }
 
