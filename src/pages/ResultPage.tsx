@@ -35,13 +35,14 @@ export default function ResultPage() {
   const isPassed = attempt.score >= attempt.exams.pass_score / 10;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
-      <div className="mx-auto max-w-2xl">
-        <Link to="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div className="flex items-center justify-between">
+        <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600">
           <ArrowLeft className="h-4 w-4" /> Quay lại Dashboard
         </Link>
+      </div>
 
-        <Card className="overflow-hidden">
+      <Card className="overflow-hidden">
           <div className={cn(
             "h-2 w-full",
             isPassed ? "bg-green-500" : "bg-red-500"
@@ -101,7 +102,6 @@ export default function ResultPage() {
             </Button>
           </CardFooter>
         </Card>
-      </div>
     </div>
   );
 }

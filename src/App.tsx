@@ -1,7 +1,10 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuthStore } from './store/useAuthStore';
+
+// Layout
+import DashboardLayout from './components/DashboardLayout';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -9,14 +12,26 @@ import DashboardPage from './pages/DashboardPage';
 import ExamListPage from './pages/ExamListPage';
 import QuizPage from './pages/QuizPage';
 import ResultPage from './pages/ResultPage';
+import QuestionBankPage from './pages/QuestionBankPage';
+import ExamManagementPage from './pages/ExamManagementPage';
+import ExamEditorPage from './pages/ExamEditorPage';
+import ReportsPage from './pages/ReportsPage';
+import MyResultsPage from './pages/MyResultsPage';
+import UserManagementPage from './pages/UserManagementPage';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, roles, noLayout = false }: { children: React.ReactNode, roles?: string[], noLayout?: boolean }) {
   const { user, loading } = useAuthStore();
   
   if (loading) return <div className="flex h-screen items-center justify-center">Đang tải...</div>;
   if (!user) return <Navigate to="/login" />;
   
-  return <>{children}</>;
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  if (noLayout) return <>{children}</>;
+  
+  return <DashboardLayout>{children}</DashboardLayout>;
 }
 
 export default function App() {
@@ -38,21 +53,66 @@ export default function App() {
           </ProtectedRoute>
         } />
         
+        {/* Student Routes */}
         <Route path="/exams" element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['student', 'teacher', 'admin']}>
             <ExamListPage />
           </ProtectedRoute>
         } />
         
-        <Route path="/quiz/:examId" element={
-          <ProtectedRoute>
-            <QuizPage />
+        <Route path="/results" element={
+          <ProtectedRoute roles={['student']}>
+            <MyResultsPage />
           </ProtectedRoute>
         } />
         
         <Route path="/results/:attemptId" element={
           <ProtectedRoute>
             <ResultPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Teacher/Admin Routes */}
+        <Route path="/questions" element={
+          <ProtectedRoute roles={['teacher', 'admin']}>
+            <QuestionBankPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/exams/manage" element={
+          <ProtectedRoute roles={['teacher', 'admin']}>
+            <ExamManagementPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/exams/create" element={
+          <ProtectedRoute roles={['teacher', 'admin']}>
+            <ExamEditorPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/exams/edit/:id" element={
+          <ProtectedRoute roles={['teacher', 'admin']}>
+            <ExamEditorPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/reports" element={
+          <ProtectedRoute roles={['teacher', 'admin']}>
+            <ReportsPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/users" element={
+          <ProtectedRoute roles={['admin']}>
+            <UserManagementPage />
+          </ProtectedRoute>
+        } />
+        
+        {/* Quiz Page (No Layout) */}
+        <Route path="/quiz/:examId" element={
+          <ProtectedRoute noLayout>
+            <QuizPage />
           </ProtectedRoute>
         } />
 

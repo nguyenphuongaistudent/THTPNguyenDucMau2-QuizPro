@@ -7,7 +7,7 @@ import { Plus, BookOpen, Users, ClipboardList, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuthStore();
+  const { user } = useAuthStore();
   const [stats, setStats] = useState({
     exams: 0,
     questions: 0,
@@ -50,38 +50,22 @@ export default function DashboardPage() {
   }, [user]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-bottom bg-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-blue-600">EduQuizPro</h1>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-slate-900">{user?.full_name}</p>
-              <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={signOut}>
-              <LogOut className="h-5 w-5" />
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Chào mừng trở lại, {user?.full_name}!</h2>
+          <p className="text-slate-500">Đây là những gì đang diễn ra trong hệ thống của bạn.</p>
+        </div>
+        {user?.role !== 'student' && (
+          <Link to="/exams/create">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" /> Tạo đề thi
             </Button>
-          </div>
-        </div>
-      </header>
+          </Link>
+        )}
+      </div>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-800">Tổng quan</h2>
-          {user?.role !== 'student' && (
-            <div className="flex gap-2">
-              <Link to="/exams/create">
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" /> Tạo đề thi
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Stats Grid */}
+      {/* Stats Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -189,7 +173,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
-  );
+      </div>
+    );
 }

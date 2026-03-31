@@ -28,17 +28,13 @@ export default function ExamListPage() {
     fetchExams();
   }, []);
 
-  if (loading) return <div className="flex h-screen items-center justify-center">Đang tải danh sách đề thi...</div>;
+  if (loading) return <div className="py-20 text-center">Đang tải danh sách đề thi...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Kỳ thi đang diễn ra</h1>
-          <Link to="/dashboard">
-            <Button variant="ghost">Quay lại</Button>
-          </Link>
-        </div>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Kỳ thi đang diễn ra</h1>
+      </div>
 
         {exams.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl bg-white py-20 shadow-sm">
@@ -77,7 +73,6 @@ export default function ExamListPage() {
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }
