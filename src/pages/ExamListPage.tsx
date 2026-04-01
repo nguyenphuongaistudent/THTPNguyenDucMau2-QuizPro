@@ -20,13 +20,23 @@ export default function ExamListPage() {
       try {
         setLoading(true);
         // Fetch exams
-        const { data: examData, error: examError } = await supabase
+        let { data: examData, error: examError } = await supabase
           .from('exams')
           .select('*, profiles(full_name)')
           .eq('is_published', true)
           .order('created_at', { ascending: false });
         
-        if (examError) throw examError;
+        if (examError) {
+          // If select '*' fails, try basic columns
+          const { data: fallbackExams, error: fallbackError } = await supabase
+            .from('exams')
+            .select('id, title, description, duration, pass_score, is_published, profiles(full_name)')
+            .eq('is_published', true)
+            .order('created_at', { ascending: false });
+          
+          if (fallbackError) throw fallbackError;
+          examData = fallbackExams;
+        }
         setExams(examData || []);
 
         // Fetch user attempts if logged in

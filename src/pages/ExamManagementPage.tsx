@@ -34,9 +34,30 @@ export default function ExamManagementPage() {
       query = query.eq('is_published', false);
     }
 
-    const { data, error } = await query;
-    if (error) toast.error(error.message);
-    else setExams(data || []);
+    let { data, error } = await query;
+    if (error) {
+      // Fallback to basic columns if select '*' fails
+      let fallbackQuery = supabase
+        .from('exams')
+        .select('id, title, description, duration, pass_score, is_published, profiles(full_name)')
+        .order('created_at', { ascending: false });
+      
+      if (user.role === 'teacher') {
+        fallbackQuery = fallbackQuery.eq('created_by', user.id);
+      }
+
+      if (statusFilter === 'published') {
+        fallbackQuery = fallbackQuery.eq('is_published', true);
+      } else if (statusFilter === 'draft') {
+        fallbackQuery = fallbackQuery.eq('is_published', false);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+      if (fallbackError) toast.error(fallbackError.message);
+      else setExams(fallbackData || []);
+    } else {
+      setExams(data || []);
+    }
     setLoading(false);
   };
 

@@ -105,13 +105,23 @@ export default function QuizPage() {
 
       try {
         // 1. Fetch exam
-        const { data: examData, error: examError } = await supabase
+        let { data: examData, error: examError } = await supabase
           .from('exams')
           .select('*')
           .eq('id', examId)
           .single();
         
-        if (examError) throw examError;
+        if (examError) {
+          // If select '*' fails, try basic columns
+          const { data: fallbackExam, error: fallbackError } = await supabase
+            .from('exams')
+            .select('id, title, description, duration, pass_score, is_published')
+            .eq('id', examId)
+            .single();
+          
+          if (fallbackError) throw fallbackError;
+          examData = fallbackExam;
+        }
         
         const now = new Date();
         const startAt = examData.start_at ? new Date(examData.start_at) : null;
