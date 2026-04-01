@@ -113,7 +113,15 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-bold text-slate-900">
             Chào mừng trở lại, {user?.full_name || 'Người dùng'}!
           </h2>
-          <p className="text-slate-500">Đây là những gì đang diễn ra trong hệ thống của bạn.</p>
+          <div className="flex flex-wrap gap-2 text-sm text-slate-500">
+            {user?.role === 'student' && (
+              <>
+                {user.school && <span>Trường: <span className="font-medium text-slate-700">{user.school}</span></span>}
+                {user.class && <span>Lớp: <span className="font-medium text-slate-700">{user.class}</span></span>}
+              </>
+            )}
+            {!user?.school && !user?.class && <p>Đây là những gì đang diễn ra trong hệ thống của bạn.</p>}
+          </div>
         </div>
         {user?.role !== 'student' && (
           <Link to="/exams/create">

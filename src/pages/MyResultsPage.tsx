@@ -74,9 +74,11 @@ export default function MyResultsPage() {
                             Trạng thái: 
                             <span className={cn(
                               "font-medium",
-                              attempt.status === 'completed' ? "text-blue-600" : "text-orange-600"
+                              attempt.status === 'completed' ? "text-blue-600" : 
+                              attempt.status === 'abandoned' ? "text-red-600" : "text-orange-600"
                             )}>
-                              {attempt.status === 'completed' ? 'Hoàn thành' : 'Hết giờ'}
+                              {attempt.status === 'completed' ? 'Hoàn thành' : 
+                               attempt.status === 'abandoned' ? 'Đã thoát' : 'Hết giờ'}
                             </span>
                           </span>
                         </div>

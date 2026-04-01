@@ -74,9 +74,11 @@ export default function ResultPage() {
                 <p className="text-sm text-slate-500">Trạng thái</p>
                 <p className={cn(
                   "text-xl font-bold capitalize",
-                  attempt.status === 'completed' ? "text-blue-600" : "text-orange-600"
+                  attempt.status === 'completed' ? "text-blue-600" : 
+                  attempt.status === 'abandoned' ? "text-red-600" : "text-orange-600"
                 )}>
-                  {attempt.status === 'completed' ? 'Hoàn thành' : 'Hết giờ'}
+                  {attempt.status === 'completed' ? 'Hoàn thành' : 
+                   attempt.status === 'abandoned' ? 'Đã thoát' : 'Hết giờ'}
                 </p>
               </div>
             </div>

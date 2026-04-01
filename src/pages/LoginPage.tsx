@@ -12,6 +12,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [dob, setDob] = useState('');
+  const [school, setSchool] = useState('');
+  const [className, setClassName] = useState('');
   const [role, setRole] = useState<'student' | 'teacher'>('student');
   const navigate = useNavigate();
 
@@ -27,6 +31,10 @@ export default function LoginPage() {
           options: {
             data: {
               full_name: fullName,
+              username: username,
+              dob: dob,
+              school: school,
+              class: className,
               role: role,
             },
           },
@@ -110,37 +118,71 @@ export default function LoginPage() {
           <form onSubmit={handleAuth} className="space-y-4">
             {isRegister && (
               <>
-                <Input
-                  label="Họ và tên"
-                  placeholder="Nguyễn Văn A"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Bạn là?</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="role"
-                        value="student"
-                        checked={role === 'student'}
-                        onChange={() => setRole('student')}
-                      />
-                      Học sinh
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="role"
-                        value="teacher"
-                        checked={role === 'teacher'}
-                        onChange={() => setRole('teacher')}
-                      />
-                      Giáo viên
-                    </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Họ và tên"
+                    placeholder="Nguyễn Văn A"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Tên đăng nhập"
+                    placeholder="nguyenvana"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Ngày sinh"
+                    type="date"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    required
+                  />
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Bạn là?</label>
+                    <div className="flex h-10 items-center gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name="role"
+                          value="student"
+                          checked={role === 'student'}
+                          onChange={() => setRole('student')}
+                        />
+                        Học sinh
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name="role"
+                          value="teacher"
+                          checked={role === 'teacher'}
+                          onChange={() => setRole('teacher')}
+                        />
+                        Giáo viên
+                      </label>
+                    </div>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Trường"
+                    placeholder="Tên trường học"
+                    value={school}
+                    onChange={(e) => setSchool(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Lớp học"
+                    placeholder="Ví dụ: 12A1"
+                    value={className}
+                    onChange={(e) => setClassName(e.target.value)}
+                    required
+                  />
                 </div>
               </>
             )}

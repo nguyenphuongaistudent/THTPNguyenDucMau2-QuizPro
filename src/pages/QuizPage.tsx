@@ -37,7 +37,9 @@ export default function QuizPage() {
   // Anti-cheat state
   const [cheatWarnings, setCheatWarnings] = useState(0);
 
-  const submitQuiz = useCallback(async (status: 'completed' | 'timed_out' = 'completed') => {
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  
+  const submitQuiz = useCallback(async (status: 'completed' | 'timed_out' | 'abandoned' = 'completed') => {
     if (!attemptId || isSubmitting) return;
     setIsSubmitting(true);
     
@@ -69,7 +71,9 @@ export default function QuizPage() {
         selected_answer_ids: aIds,
       }));
 
-      await supabase.from('attempt_answers').insert(attemptAnswersData);
+      if (attemptAnswersData.length > 0) {
+        await supabase.from('attempt_answers').insert(attemptAnswersData);
+      }
 
       // 3. Update attempt
       await supabase.from('attempts').update({
@@ -78,8 +82,13 @@ export default function QuizPage() {
         status,
       }).eq('id', attemptId);
 
-      toast.success('Nộp bài thành công!');
-      navigate(`/results/${attemptId}`);
+      if (status === 'abandoned') {
+        toast.info('Bạn đã thoát bài thi. Kết quả đã được lưu.');
+        navigate('/exams');
+      } else {
+        toast.success('Nộp bài thành công!');
+        navigate(`/results/${attemptId}`);
+      }
     } catch (error: any) {
       toast.error('Lỗi khi nộp bài: ' + error.message);
     } finally {
@@ -127,19 +136,45 @@ export default function QuizPage() {
         }));
         setQuestions(formattedQs);
 
-        // 3. Create attempt
-        const { data: attempt, error: attemptError } = await supabase
+        // 3. Check for existing in_progress attempt
+        const { data: existingAttempt } = await supabase
           .from('attempts')
-          .insert({
-            user_id: user.id,
-            exam_id: examId,
-            status: 'in_progress',
-          })
-          .select()
-          .single();
-        
-        if (attemptError) throw attemptError;
-        setAttemptId(attempt.id);
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('exam_id', examId)
+          .eq('status', 'in_progress')
+          .maybeSingle();
+
+        if (existingAttempt) {
+          setAttemptId(existingAttempt.id);
+          // Optionally fetch existing answers if we want to resume
+          const { data: existingAnswers } = await supabase
+            .from('attempt_answers')
+            .select('*')
+            .eq('attempt_id', existingAttempt.id);
+          
+          if (existingAnswers) {
+            const answersMap: Record<string, string[]> = {};
+            existingAnswers.forEach((a: any) => {
+              answersMap[a.question_id] = a.selected_answer_ids;
+            });
+            setAnswers(answersMap);
+          }
+        } else {
+          // Create new attempt
+          const { data: attempt, error: attemptError } = await supabase
+            .from('attempts')
+            .insert({
+              user_id: user.id,
+              exam_id: examId,
+              status: 'in_progress',
+            })
+            .select()
+            .single();
+          
+          if (attemptError) throw attemptError;
+          setAttemptId(attempt.id);
+        }
 
       } catch (error: any) {
         toast.error(error.message);
@@ -230,7 +265,7 @@ export default function QuizPage() {
             {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => navigate('/exams')}>
+            <Button variant="outline" size="sm" onClick={() => setShowExitConfirm(true)}>
               Thoát
             </Button>
             <Button variant="primary" onClick={() => submitQuiz()} loading={isSubmitting}>
@@ -332,6 +367,44 @@ export default function QuizPage() {
           </div>
         </div>
       </main>
+
+      {/* Exit Confirmation Modal */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h3 className="mb-2 text-lg font-bold text-slate-900">Bạn muốn thoát bài thi?</h3>
+            <p className="mb-6 text-slate-600">
+              Nếu thoát bây giờ, bài thi của bạn sẽ được nộp với các câu trả lời hiện tại. Bạn không thể quay lại làm tiếp.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowExitConfirm(false)}
+              >
+                Tiếp tục thi
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1 bg-red-600 hover:bg-red-700 border-red-600"
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  submitQuiz('abandoned');
+                }}
+              >
+                Xác nhận thoát
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

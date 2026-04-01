@@ -3,6 +3,10 @@ CREATE TABLE profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
+  username TEXT,
+  dob DATE,
+  school TEXT,
+  class TEXT,
   avatar_url TEXT,
   role TEXT DEFAULT 'student' CHECK (role IN ('admin', 'teacher', 'student')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -19,6 +23,32 @@ CREATE POLICY "Users can insert their own profile." ON profiles
 
 CREATE POLICY "Users can update own profile." ON profiles
   FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Admins can delete profiles." ON profiles
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- RPC function to delete a user from auth.users (requires service_role or security definer)
+CREATE OR REPLACE FUNCTION delete_user(user_id UUID)
+RETURNS void AS $$
+BEGIN
+  -- Check if the caller is an admin
+  IF EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  ) THEN
+    -- Prevent self-deletion
+    IF user_id = auth.uid() THEN
+      RAISE EXCEPTION 'You cannot delete your own account';
+    END IF;
+    
+    DELETE FROM auth.users WHERE id = user_id;
+  ELSE
+    RAISE EXCEPTION 'Only admins can delete users';
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Subjects Table
 CREATE TABLE subjects (
@@ -156,11 +186,15 @@ CREATE POLICY "Users can manage their own attempt answers." ON attempt_answers F
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role)
+  INSERT INTO public.profiles (id, email, full_name, username, dob, school, class, role)
   VALUES (
     new.id, 
     new.email, 
     COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'), 
+    new.raw_user_meta_data->>'username',
+    (new.raw_user_meta_data->>'dob')::DATE,
+    new.raw_user_meta_data->>'school',
+    new.raw_user_meta_data->>'class',
     CASE 
       WHEN new.email = 'nguyenphuongaistudent@gmail.com' THEN 'admin'
       ELSE COALESCE(new.raw_user_meta_data->>'role', 'student')
