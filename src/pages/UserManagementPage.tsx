@@ -52,6 +52,32 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     fetchUsers();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('public:profiles')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'profiles' 
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setUsers(prev => {
+            // Avoid duplicates
+            if (prev.some(u => u.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          setUsers(prev => prev.map(u => u.id === payload.new.id ? payload.new : u));
+        } else if (payload.eventType === 'DELETE') {
+          setUsers(prev => prev.filter(u => u.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
@@ -63,7 +89,7 @@ export default function UserManagementPage() {
     if (error) toast.error(error.message);
     else {
       toast.success('Cập nhật vai trò thành công');
-      fetchUsers();
+      // Realtime will handle the state update
     }
   };
 
@@ -91,10 +117,13 @@ export default function UserManagementPage() {
         if (deleteError) throw deleteError;
       }
       
+      // Update local state immediately for better UX (Realtime will also handle this)
+      setUsers(prev => prev.filter(u => u.id !== userToDelete));
+      
       toast.success('Đã xóa người dùng thành công');
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
-      fetchUsers();
+      // Removed fetchUsers() as Realtime or local state update handles it
     } catch (error: any) {
       toast.error('Lỗi khi xóa người dùng: ' + error.message);
     } finally {
@@ -110,6 +139,7 @@ export default function UserManagementPage() {
     let failCount = 0;
 
     try {
+      const deletedIds: string[] = [];
       for (const id of selectedIds) {
         // Try RPC first
         const { error: rpcError } = await supabase.rpc('delete_user', { target_user_id: id });
@@ -127,10 +157,17 @@ export default function UserManagementPage() {
             failCount++;
           } else {
             successCount++;
+            deletedIds.push(id);
           }
         } else {
           successCount++;
+          deletedIds.push(id);
         }
+      }
+      
+      // Update local state immediately (Realtime will also handle this)
+      if (deletedIds.length > 0) {
+        setUsers(prev => prev.filter(u => !deletedIds.includes(u.id)));
       }
       
       if (failCount > 0) {
@@ -141,7 +178,7 @@ export default function UserManagementPage() {
       
       setSelectedIds([]);
       setIsBulkDeleteModalOpen(false);
-      fetchUsers();
+      // Removed fetchUsers() as Realtime or local state update handles it
     } catch (error: any) {
       toast.error('Lỗi khi xóa người dùng: ' + error.message);
     } finally {
@@ -191,7 +228,7 @@ export default function UserManagementPage() {
         className: '',
         dob: ''
       });
-      fetchUsers();
+      // Realtime will handle the state update
     } catch (error: any) {
       toast.error('Lỗi khi thêm người dùng: ' + error.message);
     } finally {
@@ -307,7 +344,7 @@ export default function UserManagementPage() {
 
         toast.dismiss('import-progress');
         toast.success(`Đã nhập thành công ${successCount} người dùng. Thất bại: ${failCount}`);
-        fetchUsers();
+        // Realtime will handle the state update
       } catch (error: any) {
         toast.error('Lỗi khi đọc file Excel: ' + error.message);
       } finally {
