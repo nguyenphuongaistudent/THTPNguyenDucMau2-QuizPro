@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Search, Plus, Trash2, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Trash2, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
@@ -23,6 +23,7 @@ export default function ExamEditorPage() {
   const [endAt, setEndAt] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasNewColumns, setHasNewColumns] = useState(true);
   
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<any[]>([]);
@@ -40,6 +41,7 @@ export default function ExamEditorPage() {
         
         if (fetchError) {
           // If select '*' fails (likely due to missing columns), try fetching basic columns
+          setHasNewColumns(false);
           const { data: fallbackExam, error: fallbackError } = await supabase
             .from('exams')
             .select('id, title, description, duration, pass_score, is_published')
@@ -56,6 +58,7 @@ export default function ExamEditorPage() {
             setIsPublished(fallbackExam.is_published);
           }
         } else if (exam) {
+          setHasNewColumns(true);
           setTitle(exam.title);
           setDescription(exam.description);
           setDuration(exam.duration);
@@ -76,6 +79,10 @@ export default function ExamEditorPage() {
         if (eqData) {
           setSelectedQuestions(eqData.map(item => item.questions));
         }
+      } else {
+        // For new exams, check if columns exist by trying a dummy select
+        const { error: checkError } = await supabase.from('exams').select('max_attempts, start_at, end_at').limit(1);
+        if (checkError) setHasNewColumns(false);
       }
     };
     fetchData();
@@ -113,38 +120,22 @@ export default function ExamEditorPage() {
         // Update exam
         const { error } = await supabase
           .from('exams')
-          .update(fullPayload)
+          .update(hasNewColumns ? fullPayload : basicPayload)
           .eq('id', id);
         
-        if (error) {
-          // If update fails (likely due to missing columns), try basic update
-          const { error: basicError } = await supabase
-            .from('exams')
-            .update(basicPayload)
-            .eq('id', id);
-          if (basicError) throw basicError;
-        }
+        if (error) throw error;
 
         // Clear old questions
         await supabase.from('exam_questions').delete().eq('exam_id', id);
       } else {
         // Create exam
-        let { data, error } = await supabase
+        const { data, error } = await supabase
           .from('exams')
-          .insert({ ...fullPayload, created_by: user?.id })
+          .insert({ ...(hasNewColumns ? fullPayload : basicPayload), created_by: user?.id })
           .select()
           .single();
         
-        if (error) {
-          // If insert fails (likely due to missing columns), try basic insert
-          const { data: basicData, error: basicError } = await supabase
-            .from('exams')
-            .insert({ ...basicPayload, created_by: user?.id })
-            .select()
-            .single();
-          if (basicError) throw basicError;
-          data = basicData;
-        }
+        if (error) throw error;
         examId = data.id;
       }
 
@@ -158,7 +149,11 @@ export default function ExamEditorPage() {
       const { error: eqError } = await supabase.from('exam_questions').insert(examQuestions);
       if (eqError) throw eqError;
 
-      toast.success('Lưu đề thi thành công');
+      if (!hasNewColumns) {
+        toast.warning('Đề thi đã được lưu, nhưng các thiết lập nâng cao (Thời gian, Số lượt) bị bỏ qua do cơ sở dữ liệu chưa được cập nhật.');
+      } else {
+        toast.success('Lưu đề thi thành công');
+      }
       navigate('/exams');
     } catch (error: any) {
       toast.error(error.message);
@@ -196,6 +191,15 @@ export default function ExamEditorPage() {
               <CardTitle className="text-lg">Thông tin chung</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {!hasNewColumns && (
+                <div className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-[11px] text-amber-700 border border-amber-200">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-bold">Cần cập nhật cơ sở dữ liệu</p>
+                    <p>Các tính năng mới (Thời gian bắt đầu, Kết thúc, Số lượt làm bài) sẽ không được lưu cho đến khi bạn cập nhật SQL trong Supabase.</p>
+                  </div>
+                </div>
+              )}
               <Input label="Tiêu đề đề thi" value={title} onChange={e => setTitle(e.target.value)} required />
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Mô tả</label>
