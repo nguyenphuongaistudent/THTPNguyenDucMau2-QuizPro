@@ -102,11 +102,20 @@ export default function UserManagementPage() {
     try {
       for (const id of selectedIds) {
         const { error } = await supabase.rpc('delete_user', { user_id: id });
-        if (error) failCount++;
-        else successCount++;
+        if (error) {
+          console.error(`Error deleting user ${id}:`, error);
+          failCount++;
+        } else {
+          successCount++;
+        }
       }
       
-      toast.success(`Đã xóa thành công ${successCount} người dùng. Thất bại: ${failCount}`);
+      if (failCount > 0) {
+        toast.error(`Xóa thất bại ${failCount} người dùng. Vui lòng kiểm tra quyền hạn hoặc thử lại.`);
+      } else {
+        toast.success(`Đã xóa thành công ${successCount} người dùng.`);
+      }
+      
       setSelectedIds([]);
       setIsBulkDeleteModalOpen(false);
       fetchUsers();

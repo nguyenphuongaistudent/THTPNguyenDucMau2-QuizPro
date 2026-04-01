@@ -33,11 +33,11 @@ CREATE POLICY "Admins can delete profiles." ON profiles
 CREATE OR REPLACE FUNCTION delete_user(user_id UUID)
 RETURNS void AS $$
 BEGIN
-  -- Check if the caller is an admin
+  -- Check if the caller is an admin or the specific super-admin email
   IF EXISTS (
     SELECT 1 FROM public.profiles 
     WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  ) OR (auth.jwt() ->> 'email' = 'nguyenphuongaistudent@gmail.com') THEN
     -- Prevent self-deletion
     IF user_id = auth.uid() THEN
       RAISE EXCEPTION 'You cannot delete your own account';
