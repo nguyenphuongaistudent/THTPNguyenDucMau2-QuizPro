@@ -33,6 +33,7 @@ export default function QuizPage() {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Anti-cheat state
   const [cheatWarnings, setCheatWarnings] = useState(0);
@@ -64,7 +65,7 @@ export default function QuizPage() {
 
       const score = (correctCount / questions.length) * 10;
 
-      // 2. Save attempt answers
+      // 2. Save attempt answers (using upsert with onConflict)
       const attemptAnswersData = Object.entries(answers).map(([qId, aIds]) => ({
         attempt_id: attemptId,
         question_id: qId,
@@ -72,7 +73,9 @@ export default function QuizPage() {
       }));
 
       if (attemptAnswersData.length > 0) {
-        await supabase.from('attempt_answers').insert(attemptAnswersData);
+        await supabase.from('attempt_answers').upsert(attemptAnswersData, {
+          onConflict: 'attempt_id,question_id'
+        });
       }
 
       // 3. Update attempt
@@ -228,21 +231,41 @@ export default function QuizPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [submitQuiz]);
 
-  const handleAnswerSelect = (qId: string, aId: string) => {
+  const handleAnswerSelect = async (qId: string, aId: string) => {
+    const qType = questions.find(q => q.id === qId)?.type;
+    let newSelected: string[] = [];
+
     setAnswers(prev => {
       const current = prev[qId] || [];
-      const qType = questions.find(q => q.id === qId)?.type;
-
       if (qType === 'single' || qType === 'boolean') {
-        return { ...prev, [qId]: [aId] };
+        newSelected = [aId];
       } else {
         if (current.includes(aId)) {
-          return { ...prev, [qId]: current.filter(id => id !== aId) };
+          newSelected = current.filter(id => id !== aId);
         } else {
-          return { ...prev, [qId]: [...current, aId] };
+          newSelected = [...current, aId];
         }
       }
+      return { ...prev, [qId]: newSelected };
     });
+
+    // Auto-save to DB
+    if (attemptId) {
+      setIsSaving(true);
+      try {
+        await supabase.from('attempt_answers').upsert({
+          attempt_id: attemptId,
+          question_id: qId,
+          selected_answer_ids: newSelected
+        }, {
+          onConflict: 'attempt_id,question_id'
+        });
+      } catch (err) {
+        console.error('Auto-save failed:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center">Đang tải đề thi...</div>;
@@ -268,6 +291,7 @@ export default function QuizPage() {
             {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
           </div>
           <div className="flex items-center gap-3">
+            {isSaving && <span className="text-xs text-slate-400 animate-pulse">Đang lưu...</span>}
             <Button variant="outline" size="sm" onClick={() => setShowExitConfirm(true)}>
               Thoát
             </Button>

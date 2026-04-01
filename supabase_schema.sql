@@ -159,7 +159,7 @@ CREATE TABLE attempts (
   start_time TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   end_time TIMESTAMP WITH TIME ZONE,
   score FLOAT DEFAULT 0,
-  status TEXT DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'timed_out')),
+  status TEXT DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'timed_out', 'abandoned')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -174,7 +174,8 @@ CREATE TABLE attempt_answers (
   attempt_id UUID REFERENCES attempts(id) ON DELETE CASCADE NOT NULL,
   question_id UUID REFERENCES questions(id) ON DELETE CASCADE NOT NULL,
   selected_answer_ids UUID[] NOT NULL, -- Array of answer IDs
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(attempt_id, question_id)
 );
 
 ALTER TABLE attempt_answers ENABLE ROW LEVEL SECURITY;
