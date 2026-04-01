@@ -3,37 +3,67 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/useAuthStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Clock, ClipboardList, Play } from 'lucide-react';
+import { Clock, ClipboardList, Play, Calendar, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatDuration } from '../lib/utils';
+import { formatDuration, cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import { Skeleton } from '../components/ui/Skeleton';
 
 export default function ExamListPage() {
   const [exams, setExams] = useState<any[]>([]);
+  const [attempts, setAttempts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
 
   useEffect(() => {
-    const fetchExams = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        setLoading(true);
+        // Fetch exams
+        const { data: examData, error: examError } = await supabase
           .from('exams')
           .select('*, profiles(full_name)')
           .eq('is_published', true)
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
-        setExams(data || []);
+        if (examError) throw examError;
+        setExams(examData || []);
+
+        // Fetch user attempts if logged in
+        if (user?.id) {
+          const { data: attemptData, error: attemptError } = await supabase
+            .from('attempts')
+            .select('exam_id, status')
+            .eq('user_id', user.id)
+            .in('status', ['completed', 'timed_out', 'abandoned']);
+          
+          if (attemptError) throw attemptError;
+          
+          const attemptCounts: Record<string, number> = {};
+          attemptData?.forEach(a => {
+            attemptCounts[a.exam_id] = (attemptCounts[a.exam_id] || 0) + 1;
+          });
+          setAttempts(attemptCounts);
+        }
       } catch (error) {
-        console.error('Error fetching exams:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchExams();
-  }, []);
+    fetchData();
+  }, [user]);
+
+  const getExamStatus = (exam: any) => {
+    const now = new Date();
+    const startAt = exam.start_at ? new Date(exam.start_at) : null;
+    const endAt = exam.end_at ? new Date(exam.end_at) : null;
+
+    if (startAt && now < startAt) return 'upcoming';
+    if (endAt && now > endAt) return 'ended';
+    return 'active';
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -53,7 +83,7 @@ export default function ExamListPage() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Kỳ thi đang diễn ra</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Danh sách đề thi</h1>
       </div>
 
       {loading ? (
@@ -82,7 +112,7 @@ export default function ExamListPage() {
           className="flex flex-col items-center justify-center rounded-xl bg-white py-20 shadow-sm"
         >
           <ClipboardList className="mb-4 h-12 w-12 text-slate-200" />
-          <p className="text-slate-500">Hiện không có kỳ thi nào đang mở.</p>
+          <p className="text-slate-500">Hiện không có đề thi nào khả dụng.</p>
         </motion.div>
       ) : (
         <motion.div 
@@ -91,36 +121,94 @@ export default function ExamListPage() {
           initial="hidden"
           animate="visible"
         >
-          {exams.map((exam) => (
-            <motion.div key={exam.id} variants={itemVariants}>
-              <Card className="flex flex-col h-full hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="line-clamp-1 text-lg">{exam.title}</CardTitle>
-                  <CardDescription className="line-clamp-2">{exam.description || 'Không có mô tả.'}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Clock className="h-4 w-4" />
-                    Thời gian: {formatDuration(exam.duration)}
+          {exams.map((exam) => {
+            const status = getExamStatus(exam);
+            const userAttempts = attempts[exam.id] || 0;
+            const maxAttempts = exam.max_attempts || 1;
+            const isOutOfAttempts = userAttempts >= maxAttempts && user?.role === 'student';
+            const canStart = status === 'active' && !isOutOfAttempts;
+
+            return (
+              <motion.div key={exam.id} variants={itemVariants}>
+                <Card className="flex flex-col h-full hover:shadow-md transition-shadow relative overflow-hidden">
+                  <div className={cn(
+                    "absolute top-0 right-0 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white",
+                    status === 'active' ? "bg-green-500" : 
+                    status === 'upcoming' ? "bg-blue-500" : "bg-slate-500"
+                  )}>
+                    {status === 'active' ? 'Đang diễn ra' : 
+                     status === 'upcoming' ? 'Sắp diễn ra' : 'Đã kết thúc'}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <ClipboardList className="h-4 w-4" />
-                    Điểm đạt: {exam.pass_score}%
+                  
+                  <CardHeader>
+                    <CardTitle className="line-clamp-1 text-lg pr-20">{exam.title}</CardTitle>
+                    <CardDescription className="line-clamp-2">{exam.description || 'Không có mô tả.'}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Clock className="h-4 w-4" />
+                        Thời gian: {formatDuration(exam.duration)}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <ClipboardList className="h-4 w-4" />
+                        Điểm đạt: {exam.pass_score}%
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Calendar className="h-4 w-4" />
+                        Lượt làm bài: {userAttempts} / {maxAttempts}
+                      </div>
+                    </div>
+
+                    {(exam.start_at || exam.end_at) && (
+                      <div className="rounded-lg bg-slate-50 p-3 text-[11px] text-slate-500 space-y-1">
+                        {exam.start_at && (
+                          <div className="flex justify-between">
+                            <span>Bắt đầu:</span>
+                            <span className="font-medium text-slate-700">{new Date(exam.start_at).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {exam.end_at && (
+                          <div className="flex justify-between">
+                            <span>Kết thúc:</span>
+                            <span className="font-medium text-slate-700">{new Date(exam.end_at).toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="text-xs text-slate-400">
+                      Tạo bởi: {exam.profiles?.full_name}
+                    </div>
+                  </CardContent>
+                  <div className="p-6 pt-0">
+                    {isOutOfAttempts ? (
+                      <div className="flex items-center justify-center gap-2 rounded-lg bg-red-50 p-3 text-xs font-medium text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        Hết lượt làm bài
+                      </div>
+                    ) : status === 'upcoming' ? (
+                      <div className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 p-3 text-xs font-medium text-blue-600">
+                        <Calendar className="h-4 w-4" />
+                        Chưa đến giờ thi
+                      </div>
+                    ) : status === 'ended' ? (
+                      <div className="flex items-center justify-center gap-2 rounded-lg bg-slate-100 p-3 text-xs font-medium text-slate-500">
+                        <Clock className="h-4 w-4" />
+                        Đã hết hạn thi
+                      </div>
+                    ) : (
+                      <Link to={`/quiz/${exam.id}`}>
+                        <Button className="w-full gap-2">
+                          <Play className="h-4 w-4" /> Bắt đầu thi
+                        </Button>
+                      </Link>
+                    )}
                   </div>
-                  <div className="text-xs text-slate-400">
-                    Tạo bởi: {exam.profiles?.full_name}
-                  </div>
-                </CardContent>
-                <div className="p-6 pt-0">
-                  <Link to={`/quiz/${exam.id}`}>
-                    <Button className="w-full gap-2">
-                      <Play className="h-4 w-4" /> Bắt đầu thi
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+                </Card>
+              </motion.div>
+            );
+          })}
         </motion.div>
       )}
     </div>

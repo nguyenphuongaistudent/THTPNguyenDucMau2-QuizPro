@@ -126,13 +126,18 @@ CREATE TABLE exams (
   start_at TIMESTAMP WITH TIME ZONE,
   end_at TIMESTAMP WITH TIME ZONE,
   pass_score INTEGER DEFAULT 50,
+  max_attempts INTEGER DEFAULT 1,
   is_published BOOLEAN DEFAULT false,
   created_by UUID REFERENCES profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 ALTER TABLE exams ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Exams viewable by everyone if published." ON exams FOR SELECT USING (is_published = true OR auth.uid() = created_by OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Exams viewable by everyone if published." ON exams FOR SELECT USING (
+  is_published = true OR 
+  auth.uid() = created_by OR 
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'teacher'))
+);
 CREATE POLICY "Teachers and admins can manage exams." ON exams FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'teacher'))
 );

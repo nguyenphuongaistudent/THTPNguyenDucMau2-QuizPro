@@ -18,6 +18,9 @@ export default function ExamEditorPage() {
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(60);
   const [passScore, setPassScore] = useState(50);
+  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [startAt, setStartAt] = useState('');
+  const [endAt, setEndAt] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -39,6 +42,9 @@ export default function ExamEditorPage() {
           setDescription(exam.description);
           setDuration(exam.duration);
           setPassScore(exam.pass_score);
+          setMaxAttempts(exam.max_attempts || 1);
+          setStartAt(exam.start_at ? new Date(exam.start_at).toISOString().slice(0, 16) : '');
+          setEndAt(exam.end_at ? new Date(exam.end_at).toISOString().slice(0, 16) : '');
           setIsPublished(exam.is_published);
         }
 
@@ -66,12 +72,22 @@ export default function ExamEditorPage() {
     setLoading(true);
     try {
       let examId = id;
+      const examPayload = { 
+        title, 
+        description, 
+        duration, 
+        pass_score: passScore, 
+        max_attempts: maxAttempts,
+        start_at: startAt || null,
+        end_at: endAt || null,
+        is_published: isPublished 
+      };
 
       if (id) {
         // Update exam
         const { error } = await supabase
           .from('exams')
-          .update({ title, description, duration, pass_score: passScore, is_published: isPublished })
+          .update(examPayload)
           .eq('id', id);
         if (error) throw error;
 
@@ -81,7 +97,7 @@ export default function ExamEditorPage() {
         // Create exam
         const { data, error } = await supabase
           .from('exams')
-          .insert({ title, description, duration, pass_score: passScore, is_published: isPublished, created_by: user?.id })
+          .insert({ ...examPayload, created_by: user?.id })
           .select()
           .single();
         if (error) throw error;
@@ -149,6 +165,27 @@ export default function ExamEditorPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Thời gian (phút)" type="number" value={duration} onChange={e => setDuration(parseInt(e.target.value))} />
                 <Input label="Điểm đạt (%)" type="number" value={passScore} onChange={e => setPassScore(parseInt(e.target.value))} />
+              </div>
+              <Input label="Số lượt làm bài tối đa" type="number" value={maxAttempts} onChange={e => setMaxAttempts(parseInt(e.target.value))} min={1} />
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Thời gian bắt đầu</label>
+                  <input 
+                    type="datetime-local" 
+                    className="w-full rounded-md border border-slate-200 p-2 text-sm"
+                    value={startAt}
+                    onChange={e => setStartAt(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Thời gian kết thúc</label>
+                  <input 
+                    type="datetime-local" 
+                    className="w-full rounded-md border border-slate-200 p-2 text-sm"
+                    value={endAt}
+                    onChange={e => setEndAt(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50/50 p-3">
                 <div className="flex flex-col">

@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Plus, Search, Clock, ClipboardList, Trash2, Edit2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Clock, ClipboardList, Trash2, Edit2, Eye, EyeOff, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { formatDuration, cn } from '../lib/utils';
@@ -150,14 +150,37 @@ export default function ExamManagementPage() {
                 <CardDescription className="line-clamp-2 min-h-[40px]">{exam.description || 'Không có mô tả.'}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow space-y-3">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Clock className="h-4 w-4" />
-                  Thời gian: {formatDuration(exam.duration)}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Clock className="h-3 w-3" />
+                    {formatDuration(exam.duration)}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <ClipboardList className="h-3 w-3" />
+                    Đạt: {exam.pass_score}%
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Play className="h-3 w-3" />
+                    Lượt: {exam.max_attempts || 1}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <ClipboardList className="h-4 w-4" />
-                  Điểm đạt: {exam.pass_score}%
-                </div>
+
+                {(exam.start_at || exam.end_at) && (
+                  <div className="rounded bg-slate-50 p-2 text-[10px] text-slate-500 space-y-1">
+                    {exam.start_at && (
+                      <div className="flex justify-between">
+                        <span>Bắt đầu:</span>
+                        <span className="font-medium text-slate-700">{new Date(exam.start_at).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {exam.end_at && (
+                      <div className="flex justify-between">
+                        <span>Kết thúc:</span>
+                        <span className="font-medium text-slate-700">{new Date(exam.end_at).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
               <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-4">
                 <Link to={`/exams/${exam.id}`}>

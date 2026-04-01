@@ -113,10 +113,28 @@ export default function QuizPage() {
         
         if (examError) throw examError;
         
-        if (!examData.is_published && user.role === 'student') {
-          toast.error('Đề thi này hiện đang đóng hoặc chưa được công khai.');
-          navigate('/exams');
-          return;
+        const now = new Date();
+        const startAt = examData.start_at ? new Date(examData.start_at) : null;
+        const endAt = examData.end_at ? new Date(examData.end_at) : null;
+
+        if (user.role === 'student') {
+          if (!examData.is_published) {
+            toast.error('Đề thi này hiện đang đóng hoặc chưa được công khai.');
+            navigate('/exams');
+            return;
+          }
+
+          if (startAt && now < startAt) {
+            toast.error(`Đề thi chưa bắt đầu. Thời gian bắt đầu: ${startAt.toLocaleString()}`);
+            navigate('/exams');
+            return;
+          }
+
+          if (endAt && now > endAt) {
+            toast.error('Đề thi đã kết thúc.');
+            navigate('/exams');
+            return;
+          }
         }
 
         setExam(examData);
@@ -166,6 +184,20 @@ export default function QuizPage() {
             setAnswers(answersMap);
           }
         } else {
+          // Check for max attempts
+          const { count } = await supabase
+            .from('attempts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('exam_id', examId)
+            .in('status', ['completed', 'timed_out', 'abandoned']);
+
+          if (user.role === 'student' && count !== null && count >= (examData.max_attempts || 1)) {
+            toast.error('Bạn đã hết lượt làm bài cho đề thi này.');
+            navigate('/exams');
+            return;
+          }
+
           // Create new attempt
           const { data: attempt, error: attemptError } = await supabase
             .from('attempts')
