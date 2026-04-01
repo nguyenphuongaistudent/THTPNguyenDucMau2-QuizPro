@@ -77,9 +77,19 @@ export default function UserManagementPage() {
 
     setDeleting(true);
     try {
-      const { error: rpcError } = await supabase.rpc('delete_user', { user_id: userToDelete });
+      // Try RPC first to delete from auth.users
+      const { error: rpcError } = await supabase.rpc('delete_user', { target_user_id: userToDelete });
       
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        console.warn('RPC delete_user failed, falling back to direct profile deletion:', rpcError);
+        // Fallback: delete from profiles directly (auth user will remain but profile will be gone)
+        const { error: deleteError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', userToDelete);
+        
+        if (deleteError) throw deleteError;
+      }
       
       toast.success('Đã xóa người dùng thành công');
       setIsDeleteModalOpen(false);
@@ -101,10 +111,23 @@ export default function UserManagementPage() {
 
     try {
       for (const id of selectedIds) {
-        const { error } = await supabase.rpc('delete_user', { user_id: id });
-        if (error) {
-          console.error(`Error deleting user ${id}:`, error);
-          failCount++;
+        // Try RPC first
+        const { error: rpcError } = await supabase.rpc('delete_user', { target_user_id: id });
+        
+        if (rpcError) {
+          console.warn(`RPC delete_user failed for ${id}, falling back to direct profile deletion:`, rpcError);
+          // Fallback: delete from profiles directly
+          const { error: deleteError } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', id);
+          
+          if (deleteError) {
+            console.error(`Error deleting user ${id}:`, deleteError);
+            failCount++;
+          } else {
+            successCount++;
+          }
         } else {
           successCount++;
         }

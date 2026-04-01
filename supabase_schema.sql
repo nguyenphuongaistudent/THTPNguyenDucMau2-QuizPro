@@ -30,25 +30,29 @@ CREATE POLICY "Admins can delete profiles." ON profiles
   );
 
 -- RPC function to delete a user from auth.users (requires service_role or security definer)
-CREATE OR REPLACE FUNCTION delete_user(user_id UUID)
-RETURNS void AS $$
+CREATE OR REPLACE FUNCTION public.delete_user(target_user_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   -- Check if the caller is an admin or the specific super-admin email
   IF EXISTS (
-    SELECT 1 FROM public.profiles 
+    SELECT 1 FROM profiles 
     WHERE id = auth.uid() AND role = 'admin'
   ) OR (auth.jwt() ->> 'email' = 'nguyenphuongaistudent@gmail.com') THEN
     -- Prevent self-deletion
-    IF user_id = auth.uid() THEN
+    IF target_user_id = auth.uid() THEN
       RAISE EXCEPTION 'You cannot delete your own account';
     END IF;
     
-    DELETE FROM auth.users WHERE id = user_id;
+    DELETE FROM auth.users WHERE id = target_user_id;
   ELSE
     RAISE EXCEPTION 'Only admins can delete users';
   END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Subjects Table
 CREATE TABLE subjects (
