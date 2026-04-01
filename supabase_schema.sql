@@ -97,10 +97,7 @@ CREATE TABLE questions (
 );
 
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Questions viewable by creator, teacher or admin." ON questions FOR SELECT USING (
-  auth.uid() = created_by OR 
-  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'teacher'))
-);
+CREATE POLICY "Questions are viewable by authenticated users." ON questions FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Teachers and admins can manage questions." ON questions FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'teacher'))
 );
@@ -115,7 +112,7 @@ CREATE TABLE answers (
 );
 
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Answers viewable by those who can see questions." ON answers FOR SELECT USING (true);
+CREATE POLICY "Answers are viewable by authenticated users." ON answers FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Teachers and admins can manage answers." ON answers FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'teacher'))
 );

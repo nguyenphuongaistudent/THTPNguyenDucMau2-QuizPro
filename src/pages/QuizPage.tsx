@@ -128,12 +128,14 @@ export default function QuizPage() {
         
         if (qError) throw qError;
         
-        const formattedQs = qData.map((item: any) => ({
-          id: item.questions.id,
-          content: item.questions.content,
-          type: item.questions.type,
-          answers: item.questions.answers.map((a: any) => ({ id: a.id, content: a.content })),
-        }));
+        const formattedQs = qData
+          .filter((item: any) => item.questions)
+          .map((item: any) => ({
+            id: item.questions.id,
+            content: item.questions.content,
+            type: item.questions.type,
+            answers: item.questions.answers?.map((a: any) => ({ id: a.id, content: a.content })) || [],
+          }));
         setQuestions(formattedQs);
 
         // 3. Check for existing in_progress attempt
@@ -244,6 +246,7 @@ export default function QuizPage() {
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center">Đang tải đề thi...</div>;
+  if (questions.length === 0) return <div className="flex h-screen items-center justify-center">Không có câu hỏi nào trong đề thi này.</div>;
 
   const currentQ = questions[currentIdx];
   const progress = ((currentIdx + 1) / questions.length) * 100;

@@ -32,7 +32,7 @@ export default function ResultPage() {
   if (loading) return <div className="flex h-screen items-center justify-center">Đang tải kết quả...</div>;
   if (!attempt) return <div className="flex h-screen items-center justify-center">Không tìm thấy kết quả.</div>;
 
-  const isPassed = attempt.score >= attempt.exams.pass_score / 10;
+  const isPassed = attempt.score >= (attempt.exams?.pass_score || 50) / 10;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -55,7 +55,7 @@ export default function ResultPage() {
                 <XCircle className="h-10 w-10 text-red-500" />
               )}
             </div>
-            <CardTitle className="text-2xl font-bold">{attempt.exams.title}</CardTitle>
+            <CardTitle className="text-2xl font-bold">{attempt.exams?.title || 'Đề thi'}</CardTitle>
             <p className={cn(
               "text-lg font-semibold",
               isPassed ? "text-green-600" : "text-red-600"
