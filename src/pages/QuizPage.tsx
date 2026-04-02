@@ -177,41 +177,45 @@ export default function QuizPage() {
         
         if (qError) {
           console.error('Error fetching exam_questions:', qError);
-          throw qError;
+          toast.error('Lỗi truy vấn: ' + qError.message);
+          setLoading(false);
+          return;
         }
         
-        console.log('Raw exam_questions data:', qData);
+        console.log('Raw qData from Supabase:', qData);
 
         if (!qData || qData.length === 0) {
-          console.warn('No records found in exam_questions for this exam ID');
+          console.warn('No questions linked to this exam.');
           setQuestions([]);
           setLoading(false);
           return;
         }
 
+        // Robust formatting to handle potential RLS nulls
         const formattedQs = qData
-          .filter((item: any) => {
-            const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
-            if (!q) {
-              console.warn('Found exam_question record but related question is null or empty array. Check RLS on questions table.', item);
-              return false;
-            }
-            return true;
-          })
           .map((item: any) => {
+            // Handle both object and array formats from Supabase joins
             const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
+            
+            if (!q) {
+              console.error('Question data is NULL for exam_question record. This is a clear RLS issue on "questions" table.', item);
+              return null;
+            }
+
             return {
               id: q.id,
               content: q.content,
               type: q.type,
-              answers: q.answers || [],
+              answers: Array.isArray(q.answers) ? q.answers : (q.answers ? [q.answers] : []),
             };
-          });
+          })
+          .filter(Boolean);
         
-        console.log('Formatted questions:', formattedQs);
+        console.log('Final formatted questions:', formattedQs);
         
         if (formattedQs.length === 0 && qData.length > 0) {
-          toast.error('Lỗi phân quyền: Bạn không có quyền xem câu hỏi trong đề thi này.');
+          console.error('CRITICAL: RLS is blocking access to question details.');
+          toast.error('Lỗi bảo mật (RLS): Bạn không có quyền xem chi tiết câu hỏi. Hãy chạy lại lệnh SQL cấp quyền SELECT.');
         }
         
         setQuestions(formattedQs);
@@ -358,14 +362,14 @@ export default function QuizPage() {
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center">Đang tải đề thi...</div>;
-  if (questions.length === 0) {
+  if (questions.length === 0 && !loading) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 p-4 text-center">
         <AlertTriangle className="h-12 w-12 text-amber-500" />
         <h2 className="text-xl font-bold text-slate-900">Không có câu hỏi nào</h2>
         <p className="max-w-md text-slate-600">
-          Đề thi này hiện không có câu hỏi nào được gán hoặc bạn không có quyền truy cập vào các câu hỏi này. 
-          Vui lòng liên hệ với giáo viên hoặc quản trị viên.
+          Đề thi này hiện chưa có câu hỏi hoặc bạn không có quyền truy cập. 
+          Nếu bạn là giáo viên, hãy đảm bảo đã thêm câu hỏi vào đề thi và kiểm tra cấu hình RLS trên Supabase.
         </p>
         <div className="flex gap-3">
           <Button variant="outline" onClick={() => window.location.reload()}>Thử lại</Button>
