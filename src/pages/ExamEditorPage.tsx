@@ -23,11 +23,39 @@ export default function ExamEditorPage() {
   const [endAt, setEndAt] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingColumns, setCheckingColumns] = useState(false);
   const [hasNewColumns, setHasNewColumns] = useState(true);
   
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+
+  const checkDatabaseColumns = async () => {
+    setCheckingColumns(true);
+    try {
+      const { error: checkError } = await supabase
+        .from('exams')
+        .select('max_attempts, start_at, end_at')
+        .limit(1);
+      
+      if (checkError) {
+        if (checkError.code === 'PGRST204' || checkError.code === '42703' || checkError.message.includes('column')) {
+          setHasNewColumns(false);
+        } else {
+          // If it's another error (like empty table), columns might still exist
+          // PGRST204 is specifically "Column not found in schema cache"
+          // 42703 is "column does not exist" in Postgres
+          setHasNewColumns(false);
+        }
+      } else {
+        setHasNewColumns(true);
+      }
+    } catch (err) {
+      setHasNewColumns(false);
+    } finally {
+      setCheckingColumns(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,11 +64,15 @@ export default function ExamEditorPage() {
       setAllQuestions(qData || []);
 
       if (id) {
-        // Fetch existing exam
-        const { data: exam, error: fetchError } = await supabase.from('exams').select('*').eq('id', id).single();
+        // Fetch existing exam - explicitly select columns to check if they exist
+        const { data: exam, error: fetchError } = await supabase
+          .from('exams')
+          .select('id, title, description, duration, pass_score, is_published, max_attempts, start_at, end_at')
+          .eq('id', id)
+          .single();
         
         if (fetchError) {
-          // If select '*' fails (likely due to missing columns), try fetching basic columns
+          // If explicit select fails, try fetching basic columns
           setHasNewColumns(false);
           const { data: fallbackExam, error: fallbackError } = await supabase
             .from('exams')
@@ -80,9 +112,7 @@ export default function ExamEditorPage() {
           setSelectedQuestions(eqData.map(item => item.questions));
         }
       } else {
-        // For new exams, check if columns exist by trying a dummy select
-        const { error: checkError } = await supabase.from('exams').select('max_attempts, start_at, end_at').limit(1);
-        if (checkError) setHasNewColumns(false);
+        await checkDatabaseColumns();
       }
     };
     fetchData();
@@ -123,7 +153,20 @@ export default function ExamEditorPage() {
           .update(hasNewColumns ? fullPayload : basicPayload)
           .eq('id', id);
         
-        if (error) throw error;
+        if (error) {
+          // If it failed with a column error, try fallback
+          if (error.message.includes('column') || error.code === '42703' || error.code === 'PGRST204') {
+            setHasNewColumns(false);
+            const { error: retryError } = await supabase
+              .from('exams')
+              .update(basicPayload)
+              .eq('id', id);
+            if (retryError) throw retryError;
+            toast.warning('Đã lưu đề thi nhưng bỏ qua các cài đặt nâng cao (số lượt làm, thời gian) do cơ sở dữ liệu chưa được cập nhật.');
+          } else {
+            throw error;
+          }
+        }
 
         // Clear old questions
         await supabase.from('exam_questions').delete().eq('exam_id', id);
@@ -132,11 +175,26 @@ export default function ExamEditorPage() {
         const { data, error } = await supabase
           .from('exams')
           .insert({ ...(hasNewColumns ? fullPayload : basicPayload), created_by: user?.id })
-          .select()
+          .select('id')
           .single();
         
-        if (error) throw error;
-        examId = data.id;
+        if (error) {
+          if (error.message.includes('column') || error.code === '42703' || error.code === 'PGRST204') {
+            setHasNewColumns(false);
+            const { data: retryData, error: retryError } = await supabase
+              .from('exams')
+              .insert({ ...basicPayload, created_by: user?.id })
+              .select('id')
+              .single();
+            if (retryError) throw retryError;
+            examId = retryData.id;
+            toast.warning('Đã tạo đề thi nhưng bỏ qua các cài đặt nâng cao (số lượt làm, thời gian) do cơ sở dữ liệu chưa được cập nhật.');
+          } else {
+            throw error;
+          }
+        } else {
+          examId = data.id;
+        }
       }
 
       // Insert exam questions
@@ -192,12 +250,23 @@ export default function ExamEditorPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {!hasNewColumns && (
-                <div className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-[11px] text-amber-700 border border-amber-200">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-bold">Cần cập nhật cơ sở dữ liệu</p>
-                    <p>Các tính năng mới (Thời gian bắt đầu, Kết thúc, Số lượt làm bài) sẽ không được lưu cho đến khi bạn cập nhật SQL trong Supabase.</p>
+                <div className="flex flex-col gap-2 rounded-md bg-amber-50 p-3 text-[11px] text-amber-700 border border-amber-200">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <div>
+                      <p className="font-bold">Cần cập nhật cơ sở dữ liệu</p>
+                      <p>Các tính năng mới (Thời gian bắt đầu, Kết thúc, Số lượt làm bài) sẽ không được lưu cho đến khi bạn cập nhật SQL trong Supabase.</p>
+                    </div>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-1 h-7 text-[10px] border-amber-300 text-amber-800 hover:bg-amber-100"
+                    onClick={checkDatabaseColumns}
+                    loading={checkingColumns}
+                  >
+                    Kiểm tra lại kết nối
+                  </Button>
                 </div>
               )}
               <Input label="Tiêu đề đề thi" value={title} onChange={e => setTitle(e.target.value)} required />
