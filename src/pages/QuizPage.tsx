@@ -153,20 +153,46 @@ export default function QuizPage() {
         // 2. Fetch questions
         const { data: qData, error: qError } = await supabase
           .from('exam_questions')
-          .select('questions(*, answers(*))')
+          .select(`
+            question_id,
+            order_index,
+            questions:question_id (
+              id,
+              content,
+              type,
+              answers (
+                id,
+                content
+              )
+            )
+          `)
           .eq('exam_id', examId)
           .order('order_index');
         
-        if (qError) throw qError;
+        if (qError) {
+          console.error('Error fetching questions:', qError);
+          throw qError;
+        }
         
+        if (!qData || qData.length === 0) {
+          setQuestions([]);
+          setLoading(false);
+          return;
+        }
+
         const formattedQs = qData
           .filter((item: any) => item.questions)
           .map((item: any) => ({
             id: item.questions.id,
             content: item.questions.content,
             type: item.questions.type,
-            answers: item.questions.answers?.map((a: any) => ({ id: a.id, content: a.content })) || [],
+            answers: item.questions.answers || [],
           }));
+        
+        if (formattedQs.length === 0) {
+          console.warn('Questions found in exam_questions but could not be loaded from questions table. Check RLS policies.');
+        }
+        
         setQuestions(formattedQs);
 
         // 3. Check for existing in_progress attempt
@@ -311,7 +337,19 @@ export default function QuizPage() {
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center">Đang tải đề thi...</div>;
-  if (questions.length === 0) return <div className="flex h-screen items-center justify-center">Không có câu hỏi nào trong đề thi này.</div>;
+  if (questions.length === 0) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 p-4 text-center">
+        <AlertTriangle className="h-12 w-12 text-amber-500" />
+        <h2 className="text-xl font-bold text-slate-900">Không có câu hỏi nào</h2>
+        <p className="max-w-md text-slate-600">
+          Đề thi này hiện không có câu hỏi nào được gán hoặc bạn không có quyền truy cập vào các câu hỏi này. 
+          Vui lòng liên hệ với giáo viên hoặc quản trị viên.
+        </p>
+        <Button onClick={() => navigate('/exams')}>Quay lại danh sách</Button>
+      </div>
+    );
+  }
 
   const currentQ = questions[currentIdx];
   const progress = ((currentIdx + 1) / questions.length) * 100;

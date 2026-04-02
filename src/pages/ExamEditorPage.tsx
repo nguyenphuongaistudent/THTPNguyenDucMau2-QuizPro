@@ -198,14 +198,20 @@ export default function ExamEditorPage() {
       }
 
       // Insert exam questions
-      const examQuestions = selectedQuestions.map((q, idx) => ({
-        exam_id: examId,
-        question_id: q.id,
-        order_index: idx,
-      }));
+      if (selectedQuestions.length > 0) {
+        const examQuestions = selectedQuestions.map((q, idx) => ({
+          exam_id: examId,
+          question_id: q.id,
+          order_index: idx,
+        }));
 
-      const { error: eqError } = await supabase.from('exam_questions').insert(examQuestions);
-      if (eqError) throw eqError;
+        const { error: eqError } = await supabase.from('exam_questions').insert(examQuestions);
+        if (eqError) {
+          console.error('Error inserting exam questions:', eqError);
+          toast.error('Lỗi khi lưu danh sách câu hỏi: ' + eqError.message);
+          throw eqError;
+        }
+      }
 
       if (!hasNewColumns) {
         toast.warning('Đề thi đã được lưu, nhưng các thiết lập nâng cao (Thời gian, Số lượt) bị bỏ qua do cơ sở dữ liệu chưa được cập nhật.');
