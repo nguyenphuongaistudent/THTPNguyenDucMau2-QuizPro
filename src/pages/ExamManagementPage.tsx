@@ -204,7 +204,7 @@ export default function ExamManagementPage() {
                 )}
               </CardContent>
               <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-4">
-                <Link to={`/exams/${exam.id}`}>
+                <Link to={`/quiz/${exam.id}`}>
                   <Button variant="ghost" className="w-full gap-2">
                     <Eye className="h-4 w-4" /> Xem trước
                   </Button>

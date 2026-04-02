@@ -102,14 +102,23 @@ export default function ExamEditorPage() {
         }
 
         // Fetch exam questions
-        const { data: eqData } = await supabase
+        const { data: eqData, error: eqError } = await supabase
           .from('exam_questions')
           .select('question_id, questions(*)')
           .eq('exam_id', id)
           .order('order_index');
         
-        if (eqData) {
-          setSelectedQuestions(eqData.map(item => item.questions));
+        if (eqError) {
+          console.error('Error fetching exam questions:', eqError);
+        } else if (eqData) {
+          const validQuestions = eqData
+            .filter(item => item.questions)
+            .map(item => item.questions);
+          setSelectedQuestions(validQuestions);
+          
+          if (validQuestions.length < eqData.length) {
+            console.warn('Some questions in this exam could not be loaded. They might have been deleted or you lack permissions.');
+          }
         }
       } else {
         await checkDatabaseColumns();
@@ -198,8 +207,9 @@ export default function ExamEditorPage() {
       }
 
       // Insert exam questions
-      if (selectedQuestions.length > 0) {
-        const examQuestions = selectedQuestions.map((q, idx) => ({
+      const validSelected = selectedQuestions.filter(q => q && q.id);
+      if (validSelected.length > 0) {
+        const examQuestions = validSelected.map((q, idx) => ({
           exam_id: examId,
           question_id: q.id,
           order_index: idx,
@@ -211,6 +221,8 @@ export default function ExamEditorPage() {
           toast.error('Lỗi khi lưu danh sách câu hỏi: ' + eqError.message);
           throw eqError;
         }
+      } else {
+        console.warn('No valid questions selected to save');
       }
 
       if (!hasNewColumns) {

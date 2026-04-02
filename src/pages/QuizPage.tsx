@@ -101,14 +101,20 @@ export default function QuizPage() {
 
   useEffect(() => {
     const startQuiz = async () => {
-      if (!user || !examId) return;
+      if (!user || !examId) {
+        console.warn('QuizPage: user or examId is missing', { user, examId });
+        return;
+      }
+
+      const cleanExamId = examId.trim();
+      console.log('QuizPage: Starting quiz fetch for', cleanExamId, 'User:', user.id, 'Role:', user.role);
 
       try {
         // 1. Fetch exam
         let { data: examData, error: examError } = await supabase
           .from('exams')
           .select('*')
-          .eq('id', examId)
+          .eq('id', cleanExamId)
           .single();
         
         if (examError) {
@@ -116,7 +122,7 @@ export default function QuizPage() {
           const { data: fallbackExam, error: fallbackError } = await supabase
             .from('exams')
             .select('id, title, description, duration, pass_score, is_published')
-            .eq('id', examId)
+            .eq('id', cleanExamId)
             .single();
           
           if (fallbackError) throw fallbackError;
@@ -151,12 +157,12 @@ export default function QuizPage() {
         setTimeLeft(examData.duration * 60);
 
         // 2. Fetch questions
+        console.log('Fetching questions for exam:', cleanExamId);
         const { data: qData, error: qError } = await supabase
           .from('exam_questions')
           .select(`
-            question_id,
             order_index,
-            questions:question_id (
+            questions (
               id,
               content,
               type,
@@ -166,31 +172,46 @@ export default function QuizPage() {
               )
             )
           `)
-          .eq('exam_id', examId)
+          .eq('exam_id', cleanExamId)
           .order('order_index');
         
         if (qError) {
-          console.error('Error fetching questions:', qError);
+          console.error('Error fetching exam_questions:', qError);
           throw qError;
         }
         
+        console.log('Raw exam_questions data:', qData);
+
         if (!qData || qData.length === 0) {
+          console.warn('No records found in exam_questions for this exam ID');
           setQuestions([]);
           setLoading(false);
           return;
         }
 
         const formattedQs = qData
-          .filter((item: any) => item.questions)
-          .map((item: any) => ({
-            id: item.questions.id,
-            content: item.questions.content,
-            type: item.questions.type,
-            answers: item.questions.answers || [],
-          }));
+          .filter((item: any) => {
+            const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
+            if (!q) {
+              console.warn('Found exam_question record but related question is null or empty array. Check RLS on questions table.', item);
+              return false;
+            }
+            return true;
+          })
+          .map((item: any) => {
+            const q = Array.isArray(item.questions) ? item.questions[0] : item.questions;
+            return {
+              id: q.id,
+              content: q.content,
+              type: q.type,
+              answers: q.answers || [],
+            };
+          });
         
-        if (formattedQs.length === 0) {
-          console.warn('Questions found in exam_questions but could not be loaded from questions table. Check RLS policies.');
+        console.log('Formatted questions:', formattedQs);
+        
+        if (formattedQs.length === 0 && qData.length > 0) {
+          toast.error('Lỗi phân quyền: Bạn không có quyền xem câu hỏi trong đề thi này.');
         }
         
         setQuestions(formattedQs);
@@ -200,7 +221,7 @@ export default function QuizPage() {
           .from('attempts')
           .select('*')
           .eq('user_id', user.id)
-          .eq('exam_id', examId)
+          .eq('exam_id', cleanExamId)
           .eq('status', 'in_progress')
           .maybeSingle();
 
@@ -225,7 +246,7 @@ export default function QuizPage() {
             .from('attempts')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user.id)
-            .eq('exam_id', examId)
+            .eq('exam_id', cleanExamId)
             .in('status', ['completed', 'timed_out', 'abandoned']);
 
           if (user.role === 'student' && count !== null && count >= (examData.max_attempts || 1)) {
@@ -239,7 +260,7 @@ export default function QuizPage() {
             .from('attempts')
             .insert({
               user_id: user.id,
-              exam_id: examId,
+              exam_id: cleanExamId,
               status: 'in_progress',
             })
             .select()
@@ -346,7 +367,10 @@ export default function QuizPage() {
           Đề thi này hiện không có câu hỏi nào được gán hoặc bạn không có quyền truy cập vào các câu hỏi này. 
           Vui lòng liên hệ với giáo viên hoặc quản trị viên.
         </p>
-        <Button onClick={() => navigate('/exams')}>Quay lại danh sách</Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => window.location.reload()}>Thử lại</Button>
+          <Button onClick={() => navigate('/exams')}>Quay lại danh sách</Button>
+        </div>
       </div>
     );
   }
